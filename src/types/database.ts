@@ -1,5 +1,7 @@
 export type UserRole = "student" | "teacher" | "admin";
 
+export type TestCategory = "topic" | "section" | "unt_variant";
+
 export type QuestionType =
   | "single_choice"
   | "multiple_choice"
@@ -88,6 +90,8 @@ export interface Test {
   id: string;
   subject_id: string;
   topic_id: string | null;
+  test_category?: TestCategory;
+  section_title?: string | null;
   title: string;
   description: string | null;
   duration_minutes: number;

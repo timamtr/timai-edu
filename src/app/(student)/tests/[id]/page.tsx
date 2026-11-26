@@ -25,6 +25,12 @@ async function TestDetailContent({
     notFound();
   }
 
+  const isUntVariant = data.test.testCategory === "unt_variant";
+  const backHref = isUntVariant ? "/variants" : "/tests";
+  const backLabel = isUntVariant
+    ? "Барлық нұсқаларға оралу"
+    : "Барлық тесттерге оралу";
+
   const inProgressAttempt = data.attempts.find(
     (a) => a.status === "in_progress"
   );
@@ -35,16 +41,20 @@ async function TestDetailContent({
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <Link
-        href="/tests"
+        href={backHref}
         className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
-        Барлық тесттерге оралу
+        {backLabel}
       </Link>
 
       <div className="rounded-2xl border border-border bg-card p-6 shadow-xs sm:p-8">
         <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">
-          {data.test.topicTitle || "Кешенді ҰБТ тесті"}
+          {isUntVariant
+            ? "ҰБТ нұсқасы"
+            : data.test.testCategory === "section"
+            ? `Бөлімдік бекіту: ${data.test.sectionTitle || ""}`
+            : data.test.topicTitle || "Тақырыптық тест"}
         </span>
 
         <h1 className="mt-4 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
@@ -96,7 +106,6 @@ async function TestDetailContent({
         </div>
       </div>
 
-      {/* История попыток по этому тесту */}
       {completedAttempts.length > 0 && (
         <div className="rounded-2xl border border-border bg-card p-6 shadow-xs">
           <h2 className="text-base font-bold text-foreground">

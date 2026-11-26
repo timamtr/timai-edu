@@ -8,7 +8,7 @@ import {
   BookOpen,
   Bookmark,
   CheckSquare,
-  Code2,
+  FileSpreadsheet,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -16,7 +16,6 @@ import {
   Sparkles,
   User,
   X,
-  Zap,
 } from "lucide-react";
 import type { Profile } from "@/types/database";
 import { logoutAction } from "@/features/auth/actions";
@@ -25,8 +24,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Басты бет", icon: LayoutDashboard },
   { href: "/subjects", label: "Пәндер мен тақырыптар", icon: BookOpen },
   { href: "/tests", label: "Тесттер", icon: CheckSquare },
-  { href: "/quiz", label: "Жылдам квиз", icon: Zap },
-  { href: "/practice", label: "Практика", icon: Code2 },
+  { href: "/variants", label: "Нұсқалар", icon: FileSpreadsheet },
   { href: "/bookmarks", label: "Таңдаулылар", icon: Bookmark },
   { href: "/analytics", label: "Аналитика", icon: BarChart3 },
   { href: "/profile", label: "Профиль", icon: User },
@@ -81,7 +79,6 @@ export function StudentNav({ profile }: { profile: Profile }) {
 
   return (
     <>
-      {/* Desktop Sidebar */}
       <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-card lg:flex">
         <div className="flex h-16 items-center gap-2.5 border-b border-border px-6">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -116,7 +113,6 @@ export function StudentNav({ profile }: { profile: Profile }) {
         </div>
       </aside>
 
-      {/* Mobile Top Header */}
       <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-card/90 px-4 backdrop-blur-md lg:hidden">
         <Link href="/dashboard" className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -137,7 +133,6 @@ export function StudentNav({ profile }: { profile: Profile }) {
         </button>
       </header>
 
-      {/* Mobile Drawer */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden">
           <div

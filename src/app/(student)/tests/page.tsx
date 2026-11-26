@@ -5,21 +5,23 @@ import { TestsCatalog } from "@/components/tests/tests-catalog";
 
 async function TestsPageContent() {
   const profile = await requireAuth();
-  const { tests, topics } = await getPublishedTestsData(profile.id);
+  const { topicAndSectionTests, topics } = await getPublishedTestsData(
+    profile.id
+  );
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          Тесттер және сынақ нұсқалар
+          Тақырыптық және бөлімдік тесттер
         </h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          ҰБТ форматындағы уақытпен шектелген тесттерді тапсырып, әр сұрақтың
-          талдауын қараңыз.
+          Әр тақырыпты меңгеруге арналған тақырыптық тесттер мен 6 ірі бөлім
+          бойынша қорытынды бекіту тесттері.
         </p>
       </div>
 
-      <TestsCatalog tests={tests} topics={topics} />
+      <TestsCatalog tests={topicAndSectionTests} topics={topics} />
     </div>
   );
 }

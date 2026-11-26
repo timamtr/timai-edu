@@ -44,16 +44,30 @@ export const adminQuestionSchema = z
     }
   );
 
-export const adminTestSchema = z.object({
-  subjectId: z.string().uuid("Пәнді таңдаңыз"),
-  topicId: z.string().uuid().nullable().optional(),
-  title: z.string().min(3, "Тест атауы кемінде 3 таңба болуы тиіс"),
-  description: z.string().optional().default(""),
-  durationMinutes: z.number().int().min(1).max(240).default(30),
-  passingScore: z.number().int().min(0).max(100).default(60),
-  isPublished: z.boolean().default(false),
-  questionIds: z.array(z.string().uuid()).default([]),
-});
+export const adminTestSchema = z
+  .object({
+    subjectId: z.string().uuid("Пәнді таңдаңыз"),
+    testCategory: z.enum(["topic", "section", "unt_variant"]).default("topic"),
+    topicId: z.string().uuid().nullable().optional(),
+    sectionTitle: z.string().nullable().optional(),
+    title: z.string().min(3, "Тест атауы кемінде 3 таңба болуы тиіс"),
+    description: z.string().optional().default(""),
+    durationMinutes: z.number().int().min(1).max(240).default(30),
+    passingScore: z.number().int().min(0).max(100).default(60),
+    isPublished: z.boolean().default(false),
+    questionIds: z.array(z.string().uuid()).default([]),
+  })
+  .refine((data) => data.testCategory !== "topic" || Boolean(data.topicId), {
+    message: "Тақырыптық тест үшін тақырыпты таңдаңыз",
+    path: ["topicId"],
+  })
+  .refine(
+    (data) => data.testCategory !== "section" || Boolean(data.sectionTitle),
+    {
+      message: "Бекіту тесті үшін бөлімді таңдаңыз",
+      path: ["sectionTitle"],
+    }
+  );
 
 export const bulkImportItemSchema = z.object({
   subject_id: z.string().uuid(),
@@ -69,5 +83,8 @@ export const bulkImportItemSchema = z.object({
 });
 
 export const bulkImportPayloadSchema = z.object({
-  items: z.array(bulkImportItemSchema).min(1, "Импорттау үшін сұрақтар жоқ").max(500),
+  items: z
+    .array(bulkImportItemSchema)
+    .min(1, "Импорттау үшін сұрақтар жоқ")
+    .max(500),
 });

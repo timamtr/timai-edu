@@ -37,7 +37,9 @@ export async function PUT(
     .from("tests")
     .update({
       subject_id: d.subjectId,
-      topic_id: d.topicId || null,
+      test_category: d.testCategory,
+      topic_id: d.testCategory === "topic" ? d.topicId || null : null,
+      section_title: d.testCategory === "section" ? d.sectionTitle || null : null,
       title: d.title,
       description: d.description || null,
       duration_minutes: d.durationMinutes,

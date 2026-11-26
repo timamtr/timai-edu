@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loginSchema, registerSchema } from "@/lib/validations/auth";
 import { adminQuestionSchema, adminTestSchema } from "@/lib/validations/admin";
-import { startQuizSchema } from "@/lib/validations/testing";
 
 describe("Auth Validations", () => {
   it("accepts valid registration", () => {
@@ -32,7 +31,7 @@ describe("Auth Validations", () => {
   });
 });
 
-describe("Admin & Testing Validations", () => {
+describe("Admin Test & Question Validations", () => {
   const sId = "11111111-1111-4111-8111-111111111111";
   const tId = "22222222-2222-4222-8222-222222222222";
 
@@ -53,19 +52,30 @@ describe("Admin & Testing Validations", () => {
     expect(res.success).toBe(false);
   });
 
-  it("validates test creation and quiz limits", () => {
+  it("validates topic, section, and unt_variant test creation", () => {
     expect(
       adminTestSchema.safeParse({
         subjectId: sId,
-        topicId: null,
-        title: "ҰБТ сынақ тесті",
-        durationMinutes: 30,
+        testCategory: "unt_variant",
+        title: "ҰБТ 1-нұсқа",
+        durationMinutes: 35,
         passingScore: 60,
         isPublished: true,
         questionIds: [tId],
       }).success
     ).toBe(true);
-    expect(startQuizSchema.safeParse({ questionCount: 10 }).success).toBe(true);
-    expect(startQuizSchema.safeParse({ questionCount: 7 }).success).toBe(false);
+
+    expect(
+      adminTestSchema.safeParse({
+        subjectId: sId,
+        testCategory: "section",
+        sectionTitle: "01. КОМПЬЮТЕРЛІК ЖҮЙЕЛЕР",
+        title: "Бөлімдік бекіту тесті",
+        durationMinutes: 25,
+        passingScore: 60,
+        isPublished: true,
+        questionIds: [tId],
+      }).success
+    ).toBe(true);
   });
 });

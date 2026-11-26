@@ -1,15 +1,42 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Question, QuestionOption, Test, Topic } from "@/types/database";
+import type {
+  Question,
+  QuestionOption,
+  Test,
+  TestCategory,
+  Topic,
+} from "@/types/database";
+import { getSectionByTopicTitle } from "@/config/curriculum";
 
 export interface TestListItem extends Test {
+  testCategory: TestCategory;
+  sectionTitle: string | null;
   questionsCount: number;
   topicTitle: string | null;
   bestPercentage: number | null;
   attemptsCount: number;
 }
 
+function resolveCategory(raw: {
+  test_category?: string | null;
+  topic_id?: string | null;
+  section_title?: string | null;
+}): TestCategory {
+  if (
+    raw.test_category === "topic" ||
+    raw.test_category === "section" ||
+    raw.test_category === "unt_variant"
+  ) {
+    return raw.test_category;
+  }
+  if (raw.topic_id) return "topic";
+  if (raw.section_title) return "section";
+  return "unt_variant";
+}
+
 export async function getPublishedTestsData(userId: string): Promise<{
-  tests: TestListItem[];
+  topicAndSectionTests: TestListItem[];
+  untVariants: TestListItem[];
   topics: Topic[];
 }> {
   const supabase = await createClient();
@@ -40,18 +67,26 @@ export async function getPublishedTestsData(userId: string): Promise<{
     attemptsByTest.set(a.test_id, arr);
   });
 
-  const tests: TestListItem[] = (testsRes.data ?? []).map((t) => {
+  const allMapped: TestListItem[] = (testsRes.data ?? []).map((t) => {
     const topicObj = Array.isArray(t.topics)
       ? t.topics[0]
       : (t.topics as { title?: string } | null);
     const countArr = Array.isArray(t.test_questions) ? t.test_questions : [];
     const questionsCount = countArr[0]?.count ?? 0;
     const userScores = attemptsByTest.get(t.id) || [];
+    const category = resolveCategory(t);
+    const topicTitle = topicObj?.title ?? null;
+
+    const computedSection =
+      t.section_title ||
+      (topicTitle ? getSectionByTopicTitle(topicTitle) : null);
 
     return {
       id: t.id,
       subject_id: t.subject_id,
       topic_id: t.topic_id,
+      test_category: category,
+      section_title: computedSection,
       title: t.title,
       description: t.description,
       duration_minutes: t.duration_minutes,
@@ -59,15 +94,20 @@ export async function getPublishedTestsData(userId: string): Promise<{
       is_published: t.is_published,
       is_demo: t.is_demo,
       created_at: t.created_at,
+      testCategory: category,
+      sectionTitle: computedSection,
       questionsCount,
-      topicTitle: topicObj?.title ?? null,
+      topicTitle,
       bestPercentage: userScores.length > 0 ? Math.max(...userScores) : null,
       attemptsCount: userScores.length,
     };
   });
 
   return {
-    tests,
+    topicAndSectionTests: allMapped.filter(
+      (t) => t.testCategory === "topic" || t.testCategory === "section"
+    ),
+    untVariants: allMapped.filter((t) => t.testCategory === "unt_variant"),
     topics: (topicsRes.data ?? []) as Topic[],
   };
 }
@@ -99,10 +139,13 @@ export async function getTestDetails(testId: string, userId: string) {
     ? t.topics[0]
     : (t.topics as { title?: string } | null);
   const countArr = Array.isArray(t.test_questions) ? t.test_questions : [];
+  const category = resolveCategory(t);
 
   return {
     test: {
       ...(t as Test),
+      testCategory: category,
+      sectionTitle: t.section_title ?? null,
       topicTitle: topicObj?.title ?? null,
       questionsCount: countArr[0]?.count ?? 0,
     },
@@ -149,10 +192,7 @@ export async function getAttemptPlayData(attemptId: string, userId: string) {
       .from("user_answers")
       .select("question_id, selected_option_ids")
       .eq("attempt_id", attemptId),
-    supabase
-      .from("bookmarks")
-      .select("question_id")
-      .eq("user_id", userId),
+    supabase.from("bookmarks").select("question_id").eq("user_id", userId),
   ]);
 
   const questions: Question[] = (tqRes.data ?? [])
@@ -274,47 +314,6 @@ export async function getAttemptResultData(attemptId: string, userId: string) {
   };
 }
 
-export async function getPracticeQuestionsData(userId: string) {
-  const supabase = await createClient();
-
-  const [questionsRes, bookmarksRes] = await Promise.all([
-    supabase
-      .from("questions")
-      .select(
-        "id, subject_id, topic_id, question_type, difficulty, prompt, code_snippet, image_url, points, is_published, is_demo, topics(slug, title), question_options(id, question_id, label, option_text, sort_order)"
-      )
-      .eq("is_published", true)
-      .order("created_at", { ascending: true }),
-    supabase.from("bookmarks").select("question_id").eq("user_id", userId),
-  ]);
-
-  const questions = (questionsRes.data ?? []).map((q) => {
-    const topicObj = Array.isArray(q.topics)
-      ? q.topics[0]
-      : (q.topics as { slug?: string; title?: string } | null);
-    const options = (q.question_options ?? []).sort(
-      (a: QuestionOption, b: QuestionOption) => a.sort_order - b.sort_order
-    );
-    return {
-      id: q.id,
-      topic_id: q.topic_id,
-      topicSlug: topicObj?.slug || "",
-      topicTitle: topicObj?.title || "Информатика",
-      question_type: q.question_type,
-      difficulty: q.difficulty,
-      prompt: q.prompt,
-      code_snippet: q.code_snippet,
-      points: q.points,
-      options,
-    };
-  });
-
-  return {
-    questions,
-    bookmarkedIds: (bookmarksRes.data ?? []).map((b) => b.question_id),
-  };
-}
-
 export async function getUserBookmarksData(userId: string) {
   const supabase = await createClient();
 
@@ -334,7 +333,8 @@ export async function getUserBookmarksData(userId: string) {
         ? q.topics[0]
         : (q.topics as { title?: string; slug?: string } | null);
       const options = (q.question_options ?? []).sort(
-        (a: { sort_order: number }, c: { sort_order: number }) => a.sort_order - c.sort_order
+        (a: { sort_order: number }, c: { sort_order: number }) =>
+          a.sort_order - c.sort_order
       );
       return {
         bookmarkId: b.id,

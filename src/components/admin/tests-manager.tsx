@@ -17,7 +17,8 @@ import {
   X,
 } from "lucide-react";
 import type { AdminTestRow } from "@/services/admin";
-import type { Subject, Topic } from "@/types/database";
+import type { Subject, TestCategory, Topic } from "@/types/database";
+import { CURRICULUM_SECTIONS } from "@/config/curriculum";
 
 interface BankQuestionItem {
   id: string;
@@ -45,7 +46,11 @@ export function TestsManager({
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const [subjectId, setSubjectId] = useState(subjects[0]?.id || "");
-  const [topicId, setTopicId] = useState<string>("");
+  const [testCategory, setTestCategory] = useState<TestCategory>("topic");
+  const [topicId, setTopicId] = useState<string>(topics[0]?.id || "");
+  const [sectionTitle, setSectionTitle] = useState<string>(
+    CURRICULUM_SECTIONS[0].title
+  );
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [durationMinutes, setDurationMinutes] = useState(30);
@@ -63,7 +68,9 @@ export function TestsManager({
   const openCreateModal = () => {
     setEditingId(null);
     setSubjectId(subjects[0]?.id || "");
-    setTopicId("");
+    setTestCategory("topic");
+    setTopicId(topics[0]?.id || "");
+    setSectionTitle(CURRICULUM_SECTIONS[0].title);
     setTitle("");
     setDescription("");
     setDurationMinutes(30);
@@ -79,7 +86,15 @@ export function TestsManager({
   const openEditModal = (test: AdminTestRow) => {
     setEditingId(test.id);
     setSubjectId(test.subject_id);
-    setTopicId(test.topic_id || "");
+    const cat: TestCategory =
+      (test as { test_category?: TestCategory }).test_category ||
+      (test.topic_id ? "topic" : "unt_variant");
+    setTestCategory(cat);
+    setTopicId(test.topic_id || topics[0]?.id || "");
+    setSectionTitle(
+      (test as { section_title?: string | null }).section_title ||
+        CURRICULUM_SECTIONS[0].title
+    );
     setTitle(test.title);
     setDescription(test.description || "");
     setDurationMinutes(test.duration_minutes);
@@ -129,7 +144,9 @@ export function TestsManager({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           subjectId,
-          topicId: topicId || null,
+          testCategory,
+          topicId: testCategory === "topic" ? topicId || null : null,
+          sectionTitle: testCategory === "section" ? sectionTitle : null,
           title,
           description,
           durationMinutes: Number(durationMinutes),
@@ -185,10 +202,11 @@ export function TestsManager({
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            Тесттерді басқару
+            Тесттер және ҰБТ нұсқалары
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Жаңа тест құрастыру, сұрақтар ретін баптау және жариялау ({initialTests.length})
+            Тақырыптық тесттер, бөлімдік бекіту тесттері және ҰБТ нұсқаларын
+            басқару ({initialTests.length})
           </p>
         </div>
 
@@ -198,96 +216,112 @@ export function TestsManager({
           className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-xs hover:bg-[#233FA5]"
         >
           <Plus className="h-4 w-4" />
-          Жаңа тест құру
+          Жаңа тест / нұсқа құру
         </button>
       </div>
 
-      {/* Список тестов */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        {initialTests.map((test) => (
-          <div
-            key={test.id}
-            className="flex flex-col justify-between rounded-2xl border border-border bg-card p-5 shadow-xs"
-          >
-            <div>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="rounded-lg bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">
-                  {test.topicTitle || "Кешенді ҰБТ тесті"}
-                </span>
-                {test.is_published ? (
-                  <span className="rounded-lg bg-success/15 px-2.5 py-0.5 text-xs font-semibold text-success">
-                    Жарияланған
-                  </span>
-                ) : (
-                  <span className="rounded-lg bg-warning/15 px-2.5 py-0.5 text-xs font-semibold text-warning">
-                    Жасырылған
-                  </span>
-                )}
+      {initialTests.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
+          Әзірге тесттер жоқ. «Жаңа тест / нұсқа құру» батырмасын басыңыз.
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {initialTests.map((test) => {
+            const rawCat =
+              (test as { test_category?: TestCategory }).test_category ||
+              (test.topic_id ? "topic" : "unt_variant");
+            const rawSec = (test as { section_title?: string | null })
+              .section_title;
+
+            return (
+              <div
+                key={test.id}
+                className="flex flex-col justify-between rounded-2xl border border-border bg-card p-5 shadow-xs"
+              >
+                <div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="rounded-lg bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">
+                      {rawCat === "unt_variant"
+                        ? "ҰБТ нұсқасы (Нұсқалар бөлімі)"
+                        : rawCat === "section"
+                        ? `Бекіту тесті: ${rawSec || ""}`
+                        : test.topicTitle || "Тақырыптық тест"}
+                    </span>
+                    {test.is_published ? (
+                      <span className="rounded-lg bg-success/15 px-2.5 py-0.5 text-xs font-semibold text-success">
+                        Жарияланған
+                      </span>
+                    ) : (
+                      <span className="rounded-lg bg-warning/15 px-2.5 py-0.5 text-xs font-semibold text-warning">
+                        Жасырылған
+                      </span>
+                    )}
+                  </div>
+
+                  <h2 className="mt-3 text-base font-bold text-foreground">
+                    {test.title}
+                  </h2>
+                  {test.description && (
+                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                      {test.description}
+                    </p>
+                  )}
+
+                  <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <FileQuestion className="h-3.5 w-3.5 text-primary" />
+                      {test.questionIds.length} сұрақ
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5 text-primary" />
+                      {test.duration_minutes} мин
+                    </span>
+                    <span>Шекті балл: {test.passing_score}%</span>
+                  </div>
+                </div>
+
+                <div className="mt-5 flex items-center justify-end gap-2 border-t border-border pt-3.5">
+                  <button
+                    type="button"
+                    onClick={() => handleTogglePublish(test)}
+                    title={test.is_published ? "Жасыру" : "Жариялау"}
+                    className="rounded-lg border border-border p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    {test.is_published ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openEditModal(test)}
+                    title="Өңдеу"
+                    className="rounded-lg border border-border p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(test.id)}
+                    title="Өшіру"
+                    className="rounded-lg border border-border p-2 text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
+            );
+          })}
+        </div>
+      )}
 
-              <h2 className="mt-3 text-base font-bold text-foreground">
-                {test.title}
-              </h2>
-              {test.description && (
-                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                  {test.description}
-                </p>
-              )}
-
-              <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1">
-                  <FileQuestion className="h-3.5 w-3.5 text-primary" />
-                  {test.questionIds.length} сұрақ
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5 text-primary" />
-                  {test.duration_minutes} мин
-                </span>
-                <span>Шекті балл: {test.passing_score}%</span>
-              </div>
-            </div>
-
-            <div className="mt-5 flex items-center justify-end gap-2 border-t border-border pt-3.5">
-              <button
-                type="button"
-                onClick={() => handleTogglePublish(test)}
-                title={test.is_published ? "Жасыру" : "Жариялау"}
-                className="rounded-lg border border-border p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                {test.is_published ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => openEditModal(test)}
-                title="Өңдеу"
-                className="rounded-lg border border-border p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                <Pencil className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDelete(test.id)}
-                title="Өшіру"
-                className="rounded-lg border border-border p-2 text-destructive hover:bg-destructive/10"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Модальное окно конструктора теста */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-foreground/40 p-4 backdrop-blur-xs">
           <div className="my-8 w-full max-w-4xl rounded-2xl border border-border bg-card p-6 shadow-xl">
             <div className="flex items-center justify-between border-b border-border pb-4">
               <h2 className="text-lg font-bold text-foreground">
-                {editingId ? "Тестті өңдеу" : "Жаңа тест құрастыру"}
+                {editingId ? "Тестті өңдеу" : "Жаңа тест немесе ҰБТ нұсқасы"}
               </h2>
               <button
                 type="button"
@@ -305,38 +339,108 @@ export function TestsManager({
             )}
 
             <form onSubmit={handleSave} className="mt-4 space-y-5">
+              {/* Санатты таңдау */}
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-foreground">
+                  Тест санаты (қай бөлімде көрсетілетінін таңдаңыз)
+                </label>
+                <div className="grid gap-2.5 sm:grid-cols-3">
+                  {[
+                    {
+                      key: "topic" as const,
+                      title: "Тақырыптық тест",
+                      desc: "«Тесттер» бөлімінде шығады",
+                    },
+                    {
+                      key: "section" as const,
+                      title: "Бөлімдік бекіту тесті",
+                      desc: "«Тесттер» бөлімінде шығады",
+                    },
+                    {
+                      key: "unt_variant" as const,
+                      title: "ҰБТ нұсқасы",
+                      desc: "«Нұсқалар» бөлімінде шығады",
+                    },
+                  ].map((item) => (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => setTestCategory(item.key)}
+                      className={`rounded-xl border p-3 text-left transition-colors ${
+                        testCategory === item.key
+                          ? "border-primary bg-secondary/60"
+                          : "border-border bg-background hover:bg-muted/40"
+                      }`}
+                    >
+                      <div className="text-xs font-bold text-foreground">
+                        {item.title}
+                      </div>
+                      <div className="mt-0.5 text-[11px] text-muted-foreground">
+                        {item.desc}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs font-medium text-foreground">
-                    Тест атауы
+                    Атауы
                   </label>
                   <input
                     type="text"
                     required
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Мысалы: Python негіздері — Бақылау тесті"
+                    placeholder={
+                      testCategory === "unt_variant"
+                        ? "Мысалы: ҰБТ Информатика — 1-нұсқа"
+                        : testCategory === "section"
+                        ? "Мысалы: 01. Компьютерлік жүйелер — Бекіту тесті"
+                        : "Мысалы: 04. Есептеу жүйелері — Тақырыптық тест"
+                    }
                     className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
                   />
                 </div>
 
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-foreground">
-                    Тақырып (кешенді тест үшін бос қалдырыңыз)
-                  </label>
-                  <select
-                    value={topicId}
-                    onChange={(e) => setTopicId(e.target.value)}
-                    className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-                  >
-                    <option value="">Барлық тақырыптар (Кешенді тест)</option>
-                    {topics.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {testCategory === "topic" && (
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-foreground">
+                      Тақырып (01–13)
+                    </label>
+                    <select
+                      value={topicId}
+                      onChange={(e) => setTopicId(e.target.value)}
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                    >
+                      {topics.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {testCategory === "section" && (
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-foreground">
+                      Бөлім (01–06)
+                    </label>
+                    <select
+                      value={sectionTitle}
+                      onChange={(e) => setSectionTitle(e.target.value)}
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                    >
+                      {CURRICULUM_SECTIONS.map((sec) => (
+                        <option key={sec.code} value={sec.title}>
+                          {sec.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="grid gap-3 sm:grid-cols-3">
@@ -394,14 +498,11 @@ export function TestsManager({
                 />
               </div>
 
-              {/* Конструктор списка вопросов */}
+              {/* Сұрақтар конструкторы */}
               <div className="grid gap-4 lg:grid-cols-2">
-                {/* Левая колонка: выбранные вопросы и порядок */}
                 <div className="rounded-xl border border-border bg-muted/30 p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-                      Таңдалған сұрақтар ({selectedQuestionIds.length})
-                    </span>
+                  <div className="mb-3 text-xs font-bold uppercase tracking-wider text-foreground">
+                    Таңдалған сұрақтар ({selectedQuestionIds.length})
                   </div>
 
                   {selectedQuestionIds.length === 0 ? (
@@ -460,7 +561,6 @@ export function TestsManager({
                   )}
                 </div>
 
-                {/* Правая колонка: банк вопросов */}
                 <div className="rounded-xl border border-border bg-muted/30 p-4">
                   <div className="mb-2.5 text-xs font-bold uppercase tracking-wider text-foreground">
                     Сұрақтар банкі ({availableBankQuestions.length})
@@ -532,7 +632,7 @@ export function TestsManager({
                   className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:bg-[#233FA5] disabled:opacity-60"
                 >
                   {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Тестті сақтау
+                  Сақтау
                 </button>
               </div>
             </form>
